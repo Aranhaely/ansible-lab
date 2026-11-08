@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>Ansible Lab</title>
+</head>
+<body>
+    <h1>{{ welcome_message }}</h1>
+    <p>Сервер: {{ ansible_facts['hostname'] }}</p>
+    <p>IP-адрес: {{ ansible_facts['default_ipv4']['address'] }}</p>
+</body>
+</html>

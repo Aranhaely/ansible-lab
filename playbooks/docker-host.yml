@@ -1,0 +1,96 @@
+---
+- name: Настройка Docker-хоста
+  hosts: docker
+  become: true
+
+  tasks:
+    - name: Устанавливаем необходимые пакеты для репозитория
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+        state: present
+
+    - name: Создаем директорию для keyrings
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Проверяем наличие бинарного GPG-ключа Docker
+      ansible.builtin.stat:
+        path: /etc/apt/keyrings/docker.gpg
+      register: gpg_key_stat
+
+    - name: Скачиваем ASCII GPG-ключ Docker
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /tmp/docker.gpg.asc
+        mode: '0644'
+      when: not gpg_key_stat.stat.exists
+
+    - name: Конвертируем GPG-ключ в бинарный формат
+      ansible.builtin.command:
+        cmd: gpg --dearmor -o /etc/apt/keyrings/docker.gpg /tmp/docker.gpg.asc
+      args:
+        creates: /etc/apt/keyrings/docker.gpg
+      when: not gpg_key_stat.stat.exists
+
+    - name: Удаляем временный ASCII-ключ
+      ansible.builtin.file:
+        path: /tmp/docker.gpg.asc
+        state: absent
+      when: not gpg_key_stat.stat.exists
+
+    - name: Добавляем репозиторий Docker (современный формат DEB822)
+      ansible.builtin.deb822_repository:
+        name: docker
+        types: deb
+        uris: "https://download.docker.com/linux/ubuntu"
+        suites: "{{ ansible_facts['distribution_release'] }}"
+        components: stable
+        architectures: amd64
+        signed_by: /etc/apt/keyrings/docker.gpg
+        state: present
+
+    - name: Устанавливаем пакеты Docker Engine
+      ansible.builtin.apt:
+        name: "{{ docker_packages }}"
+        state: present
+        update_cache: true
+
+    - name: Создаем директорию /etc/docker
+      ansible.builtin.file:
+        path: /etc/docker
+        state: directory
+        mode: '0755'
+
+    - name: Разворачиваем конфигурацию daemon.json
+      ansible.builtin.template:
+        src: templates/daemon.json.j2
+        dest: /etc/docker/daemon.json
+        mode: '0644'
+      notify: Перезапустить Docker
+
+    - name: Запускаем и включаем автозагрузку Docker
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Настраиваем пользователя deploy для работы с Docker
+      ansible.builtin.user:
+        name: deploy
+        state: present
+        shell: /bin/bash
+        create_home: true
+        groups: docker
+        append: true
+
+  handlers:
+    - name: Перезапустить Docker
+      ansible.builtin.systemd:
+        name: docker
+        state: restarted

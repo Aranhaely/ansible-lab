@@ -1,0 +1,9 @@
+---
+- name: Базовая настройка (импорт)
+  import_playbook: ./playbooks/base.yml
+
+- name: Настройка Nginx (импорт)
+  import_playbook: ./playbooks/nginx.yml
+
+- name: Настройка Docker (импорт)
+  import_playbook: ./playbooks/docker-host.yml

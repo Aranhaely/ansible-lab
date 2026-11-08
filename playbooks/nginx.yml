@@ -1,0 +1,32 @@
+---
+- name: Настройка веб-сервера Nginx
+  hosts: web
+  become: true
+
+  tasks:
+    - name: Устанавливаем Nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+        update_cache: true
+
+    - name: Разворачиваем кастомный index.html из шаблона
+      ansible.builtin.template:
+        src: index.html.j2
+        dest: /var/www/html/index.html
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Перезагрузить Nginx
+
+    - name: Запускаем и включаем автозагрузку Nginx
+      ansible.builtin.systemd:
+        name: nginx
+        state: started
+        enabled: true
+
+  handlers:
+    - name: Перезагрузить Nginx
+      ansible.builtin.systemd:
+        name: nginx
+        state: reloaded

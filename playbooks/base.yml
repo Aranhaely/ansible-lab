@@ -1,0 +1,67 @@
+---
+- name: Базовая настройка веб-серверов
+  hosts: web
+  become: true
+
+  tasks:
+    - name: Обновляем кэш пакетов apt
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Устанавливаем базовые утилиты и nginx
+      ansible.builtin.apt:
+        name: "{{ web_packages }}"
+        state: present
+
+    # --- ПЕРЕНЕСЛИ СЮДА: Сначала создаем пользователя и ключ ---
+    - name: Создаем пользователя deploy
+      ansible.builtin.user:
+        name: deploy
+        shell: /bin/bash
+        groups: sudo
+        append: true
+        create_home: true
+        state: present
+
+    - name: Копируем SSH-ключ для пользователя deploy
+      ansible.posix.authorized_key:
+        user: deploy
+        state: present
+        key: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/id_ed25519.pub') }}"
+    # ---------------------------------------------------------
+
+    - name: Создаем базовую директорию для лабы
+      ansible.builtin.file:
+        path: "{{ lab_dir }}"
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+
+    # Теперь этот цикл не упадет, так как deploy уже создан
+    - name: Создаем директории для проектов с разными правами
+      ansible.builtin.file:
+        path: "{{ lab_dir }}/{{ item.name }}"
+        state: directory
+        mode: "{{ item.mode }}"
+        owner: "{{ item.owner }}"
+        group: root
+      loop: "{{ project_dirs }}"
+
+    # НОВОЕ: Условие (when)
+    - name: Устанавливаем специфичный пакет только для Ubuntu
+      ansible.builtin.apt:
+        name: ncdu
+        state: present
+      when: ansible_facts['distribution'] == 'Ubuntu'
+
+    # НОВОЕ: Сохранение результата и вывод (register + debug)
+    - name: Проверяем свободное место на диске
+      ansible.builtin.command: df -h /
+      register: disk_space
+      changed_when: false
+
+    - name: Выводим информацию о диске
+      ansible.builtin.debug:
+        var: disk_space.stdout_lines

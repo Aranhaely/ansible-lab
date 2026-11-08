@@ -1,0 +1,21 @@
+---
+web_packages:
+  - curl
+  - htop
+  - git
+  - nginx
+
+lab_dir: /opt/lab
+welcome_message: "Добро пожаловать на тестовый сервер Ansible!"
+
+# Новые переменные для циклов
+project_dirs:
+  - name: frontend
+    owner: www-data
+    mode: '0755'
+  - name: backend
+    owner: deploy
+    mode: '0750'
+  - name: logs
+    owner: root
+    mode: '0700'
