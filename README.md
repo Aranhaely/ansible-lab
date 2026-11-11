@@ -12,9 +12,9 @@ Multipass: node1 and node2.
 - Разделение данных и логики через `group_vars`
 - Проходит `ansible-lint` без предупреждений
 
-## Быстрый старт
+# Быстрый старт
 
 multipass.exe ls - взять IP и перенести вручную в inventory.ini
 
-# Запуск
+## Запуск
 ansible-playbook site.yml
